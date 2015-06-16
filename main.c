@@ -21,6 +21,8 @@ struct thread_arg {
 	int start, end;
 };
 
+extern double vect_dist_sse(double *v1, double *v2, int N);
+
 // Returns the euclidic distance of the given vectors.
 double vect_dist(double *v1, double *v2, int N) {
 	double sum = 0.0;
@@ -86,7 +88,8 @@ int main(int argc, char **argv)
 			pthread_join(threads[i], NULL);
 		// wait for threads to finish
 		iterations++;
-		norm = vect_dist(X, X_old, MATRIX_SIZE);
+		norm = vect_dist_sse(X, X_old, MATRIX_SIZE);
+		printf("error: %f\n", norm);
 		if (norm < epsilon)
 			break;
 		for (i = 0; i < MATRIX_SIZE; i++)

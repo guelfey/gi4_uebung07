@@ -6,15 +6,15 @@ CXX = g++
 # flags for debugging
 CFLAGS = -Wall -O0 -g -pthread
 CXXFLAGS = $(CFLAGS)
-LDFLAGS = 
+LDFLAGS = -lm
 RM = rm -rf
 ASM = nasm
-ASMFLAGS = -f elf32 -O0 -g -F dwarf
+ASMFLAGS = -f elf64 -O0 -g -F dwarf
 
 NAME = jacobi_v1
 C_source = main.c init_matrix.c
 CPP_source =
-ASM_source =
+ASM_source = vect_dist.asm
 
 # extend this for other object files
 OBJS += $(patsubst %.cpp, %.o, $(filter %.cpp, $(CPP_source)))
