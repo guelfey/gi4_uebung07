@@ -4,15 +4,22 @@
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
+#include <pthread.h>
 #include "init_matrix.h"
 
 #define MATRIX_SIZE (1024)
+#define NTHREADS (2)
 
 double **A;
 double *b;
 double *X;
 double *X_old;
 double *temp;
+
+struct thread_arg {
+	// A, X and b are global
+	int start, end;
+};
 
 // Returns the euclidic distance of the given vectors.
 double vect_dist(double *v1, double *v2, int N) {
@@ -24,6 +31,21 @@ double vect_dist(double *v1, double *v2, int N) {
 	return sqrt(sum);
 }
 
+void *thread_func(void* void_arg) {
+	struct thread_arg arg = *((struct thread_arg*) void_arg);
+	double sum;
+	int i, j;
+	for (i = arg.start; i < arg.end; i++) {
+		sum = 0.0;
+		for (j = 0; j < MATRIX_SIZE; j++) {
+			if (i != j)
+				sum += A[i][j]*X_old[j];
+		}
+		X[i] = (b[i] - sum) / A[i][i];
+	}
+	return NULL;
+}
+
 int main(int argc, char **argv)
 {
 	unsigned int i, j;
@@ -31,6 +53,8 @@ int main(int argc, char **argv)
 	double error, norm, max = 0.0;
 	double sum, epsilon;
 	struct timeval start, end;
+	pthread_t threads[NTHREADS];
+	struct thread_arg thread_args[NTHREADS];
 
 	printf("\nInitialize system of linear equations...\n");
 	/* allocate memory for the system of linear equations */
@@ -44,23 +68,25 @@ int main(int argc, char **argv)
 		X_old[i] = 0.0;
 	}
 
+
+
 	printf("Start Jacobi method...\n");
 
 	gettimeofday(&start, NULL);
 
 	epsilon = sqrt(1e-7 * MATRIX_SIZE);
 	while (1) {
-		for (i = 0; i < MATRIX_SIZE; i++) {
-			sum = 0.0;
-			for (j = 0; j < MATRIX_SIZE; j++) {
-				if (i != j)
-					sum += A[i][j]*X_old[j];
-			}
-			X[i] = (b[i] - sum) / A[i][i];
+		// create threads
+		for (i = 0; i < NTHREADS; i++) {
+			thread_args[i].start = MATRIX_SIZE/NTHREADS*i;
+			thread_args[i].end = MATRIX_SIZE/NTHREADS*(i+1);
+			pthread_create(&threads[i], NULL, thread_func, &thread_args[i]);
 		}
+		for (i = 0; i < NTHREADS; i++)
+			pthread_join(threads[i], NULL);
+		// wait for threads to finish
 		iterations++;
 		norm = vect_dist(X, X_old, MATRIX_SIZE);
-		printf("error: %f\n", norm);
 		if (norm < epsilon)
 			break;
 		for (i = 0; i < MATRIX_SIZE; i++)
