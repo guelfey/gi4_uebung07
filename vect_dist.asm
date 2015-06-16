@@ -28,12 +28,11 @@ loop:
 	; xmm0 contains two "half-sums" as packed doubles. add them and return the
 	; square root.
 
-	shufpd xmm1, xmm0, 0x1 ; move second element of xmm0 to first elemtn of
-	addpd xmm0, xmm1 ; add first element of xmm0 and xmm1 (second elemtn doesnt
+	movhlps xmm1, xmm0
+	addsd xmm0, xmm1 ; add first element of xmm0 and xmm1 (second elemtn doesnt
 	;matter
 
-	; when calling sqrt, both the parameter and the return value are in xmm0
-	call sqrt
+	sqrtsd xmm0, xmm0
 
 	pop rbx
 	pop rcx
