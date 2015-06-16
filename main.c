@@ -14,11 +14,22 @@ double *X;
 double *X_old;
 double *temp;
 
+// Returns the euclidic distance of the given vectors.
+double vect_dist(double *v1, double *v2, int N) {
+	double sum = 0.0;
+	int i;
+
+	for (i = 0; i < N; i++)
+		sum += (v1[i] - v2[i]) * (v1[i] - v2[i]);
+	return sqrt(sum);
+}
+
 int main(int argc, char **argv)
 {
 	unsigned int i, j;
 	unsigned int iterations = 0;
-	double error, xi, norm, max = 0.0;
+	double error, norm, max = 0.0;
+	double sum, epsilon;
 	struct timeval start, end;
 
 	printf("\nInitialize system of linear equations...\n");
@@ -37,7 +48,24 @@ int main(int argc, char **argv)
 
 	gettimeofday(&start, NULL);
 
-	/* TODO: Hier muss die Aufgabe geloest werden */
+	epsilon = sqrt(1e-7 * MATRIX_SIZE);
+	while (1) {
+		for (i = 0; i < MATRIX_SIZE; i++) {
+			sum = 0.0;
+			for (j = 0; j < MATRIX_SIZE; j++) {
+				if (i != j)
+					sum += A[i][j]*X_old[j];
+			}
+			X[i] = (b[i] - sum) / A[i][i];
+		}
+		iterations++;
+		norm = vect_dist(X, X_old, MATRIX_SIZE);
+		printf("error: %f\n", norm);
+		if (norm < epsilon)
+			break;
+		for (i = 0; i < MATRIX_SIZE; i++)
+			X_old[i] = X[i];
+	}
 
 	gettimeofday(&end, NULL);
 
