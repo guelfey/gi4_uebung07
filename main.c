@@ -8,7 +8,7 @@
 #include "init_matrix.h"
 
 #define MATRIX_SIZE (1024)
-#define NTHREADS (2)
+#define NTHREADS (4)
 
 double **A;
 double *b;
@@ -19,9 +19,11 @@ double *temp;
 struct thread_arg {
 	// A, X and b are global
 	int start, end;
+	int size;
 };
 
 extern double vect_dist_sse(double *v1, double *v2, int N);
+extern void* thread_func_sse(void* void_arg);
 
 // Returns the euclidic distance of the given vectors.
 double vect_dist(double *v1, double *v2, int N) {
@@ -82,18 +84,19 @@ int main(int argc, char **argv)
 		for (i = 0; i < NTHREADS; i++) {
 			thread_args[i].start = MATRIX_SIZE/NTHREADS*i;
 			thread_args[i].end = MATRIX_SIZE/NTHREADS*(i+1);
-			pthread_create(&threads[i], NULL, thread_func, &thread_args[i]);
+			thread_args[i].size = MATRIX_SIZE;
+			pthread_create(&threads[i], NULL, thread_func_sse, &thread_args[i]);
 		}
 		for (i = 0; i < NTHREADS; i++)
 			pthread_join(threads[i], NULL);
 		// wait for threads to finish
 		iterations++;
 		norm = vect_dist_sse(X, X_old, MATRIX_SIZE);
-		printf("error: %f\n", norm);
 		if (norm < epsilon)
 			break;
-		for (i = 0; i < MATRIX_SIZE; i++)
+		for (i = 0; i < MATRIX_SIZE; i++) {
 			X_old[i] = X[i];
+		}
 	}
 
 	gettimeofday(&end, NULL);

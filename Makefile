@@ -14,7 +14,7 @@ ASMFLAGS = -f elf64 -O0 -g -F dwarf
 NAME = jacobi_v1
 C_source = main.c init_matrix.c
 CPP_source =
-ASM_source = vect_dist.asm
+ASM_source = vect_dist.asm thread_func.asm
 
 # extend this for other object files
 OBJS += $(patsubst %.cpp, %.o, $(filter %.cpp, $(CPP_source)))
