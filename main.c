@@ -20,6 +20,7 @@ struct thread_arg {
 	// A, X and b are global
 	int start, end;
 	int size;
+	pthread_barrier_t *start_bar, *end_bar;
 };
 
 extern double vect_dist_sse(double *v1, double *v2, int N);
@@ -39,13 +40,17 @@ void *thread_func(void* void_arg) {
 	struct thread_arg arg = *((struct thread_arg*) void_arg);
 	double sum;
 	int i, j;
-	for (i = arg.start; i < arg.end; i++) {
-		sum = 0.0;
-		for (j = 0; j < MATRIX_SIZE; j++) {
-			if (i != j)
-				sum += A[i][j]*X_old[j];
+	while(1) {
+		pthread_barrier_wait(arg.start_bar);
+		for (i = arg.start; i < arg.end; i++) {
+			sum = 0.0;
+			for (j = 0; j < MATRIX_SIZE; j++) {
+				if (i != j)
+					sum += A[i][j]*X_old[j];
+			}
+			X[i] = (b[i] - sum) / A[i][i];
 		}
-		X[i] = (b[i] - sum) / A[i][i];
+		pthread_barrier_wait(arg.end_bar);
 	}
 	return NULL;
 }
@@ -58,6 +63,7 @@ int main(int argc, char **argv)
 	double sum, epsilon;
 	struct timeval start, end;
 	pthread_t threads[NTHREADS];
+	pthread_barrier_t start_bar, end_bar;
 	struct thread_arg thread_args[NTHREADS];
 
 	printf("\nInitialize system of linear equations...\n");
@@ -78,18 +84,22 @@ int main(int argc, char **argv)
 
 	gettimeofday(&start, NULL);
 
+	pthread_barrier_init(&start_bar, NULL, NTHREADS+1);
+	pthread_barrier_init(&end_bar, NULL, NTHREADS+1);
+	for (i = 0; i < NTHREADS; i++) {
+		thread_args[i].start = MATRIX_SIZE/NTHREADS*i;
+		thread_args[i].end = MATRIX_SIZE/NTHREADS*(i+1);
+		thread_args[i].size = MATRIX_SIZE;
+		thread_args[i].start_bar = &start_bar;
+		thread_args[i].end_bar = &end_bar;
+		pthread_create(&threads[i], NULL, thread_func_sse, &thread_args[i]);
+	}
 	epsilon = sqrt(1e-7 * MATRIX_SIZE);
 	while (1) {
-		// create threads
-		for (i = 0; i < NTHREADS; i++) {
-			thread_args[i].start = MATRIX_SIZE/NTHREADS*i;
-			thread_args[i].end = MATRIX_SIZE/NTHREADS*(i+1);
-			thread_args[i].size = MATRIX_SIZE;
-			pthread_create(&threads[i], NULL, thread_func_sse, &thread_args[i]);
-		}
-		for (i = 0; i < NTHREADS; i++)
-			pthread_join(threads[i], NULL);
+		// let threads start
+		pthread_barrier_wait(&start_bar);
 		// wait for threads to finish
+		pthread_barrier_wait(&end_bar);
 		iterations++;
 		norm = vect_dist_sse(X, X_old, MATRIX_SIZE);
 		if (norm < epsilon)

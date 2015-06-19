@@ -1,16 +1,18 @@
 SECTION .text
 	extern A, b, X, X_old
+	extern pthread_barrier_wait
 	global thread_func_sse
 
+; never returns
 thread_func_sse:
 	push rbp
 	mov rbp, rsp
-
-	push rcx
-	push rdx
-	push rsi
-	push rbx
-
+	
+	push rdi ; save arg structure pointer on stack
+	mov rdi, [rdi+16] ; wait for "start" signal
+	call pthread_barrier_wait
+	pop rdi
+	
 	xor rcx, rcx
 	mov ecx, [rdi] ; i = arg.start
 
@@ -58,15 +60,12 @@ next_j:
 	cmp ecx, [rdi+4]
 	jne loop_i
 
-	; return NULL (shouldn't be used anyway)
-	xor rax, rax
+	push rdi ; save arg structure pointer on stack
+	mov rdi, [rdi+24] ; signal that the thread is finished
+	call pthread_barrier_wait
+	pop rdi
 
-	pop rbx
-	pop rsi
-	pop rdx
-	pop rcx
-	pop rbp
-	ret
+	jmp thread_func_sse
 
 single_last:
 	; i==j, so we only use the last value
